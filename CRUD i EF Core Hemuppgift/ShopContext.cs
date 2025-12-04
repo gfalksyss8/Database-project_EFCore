@@ -16,6 +16,8 @@ namespace CRUD_i_EF_Core_Hemuppgift
         public DbSet<OrderRow> OrderRows => Set<OrderRow>();
         public DbSet<Product> Products => Set<Product>();
         public DbSet<OrderSummary> OrderSummaries => Set<OrderSummary>();
+        public DbSet<CustomerOrderCount> CustomerOrderCounts => Set<CustomerOrderCount>();
+        public DbSet<ProductSale> ProductSales => Set<ProductSale>();
 
         // Use SQLite
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -34,6 +36,21 @@ namespace CRUD_i_EF_Core_Hemuppgift
                 e.HasNoKey(); // Saknar PK alltså har ingen primärnyckel
 
                 e.ToView("OrderSummaryView"); // Kopplar tabellen mot SQLite
+            });
+
+            // CustomerOrderCount
+            modelBuilder.Entity<CustomerOrderCount>(e =>
+            {
+                e.HasNoKey();
+
+                e.ToView("CustomerOrderCountView");
+            });
+
+            // Product Sale
+            modelBuilder.Entity<ProductSale>(e =>
+            {
+                e.HasNoKey();
+                e.ToView("ProductSalesView");
             });
 
             modelBuilder.Entity<Customer>(e =>

@@ -1,4 +1,5 @@
 ﻿using CRUD_i_EF_Core_Hemuppgift;
+using CRUD_i_EF_Core_Hemuppgift.Migrations;
 using CRUD_i_EF_Core_Hemuppgift.Models;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
@@ -28,14 +29,47 @@ using (var db = new ShopContext())
 
     // Seeding for Products
     // TODO: Seed products!
+    if (!await db.Products.AnyAsync())
+    {
+        db.Products.AddRange(
+            new Product { Name = "Hammer", Price = 49M },
+            new Product { Name = "Screwdriver", Price = 29M },
+            new Product { Name = "Wrench", Price = 39M },
+            new Product { Name = "Pencil", Price = 9M }
+            );
+        await db.SaveChangesAsync();
+        Console.WriteLine("DB Products Seeded");
+    }
 
+    // Seeding for Orders
+    if (!await db.Orders.AnyAsync())
+    {
+        var orderRows1 = new List<OrderRow>
+        {
+            new OrderRow { ProductID = 1, Quantity = 5, UnitPrice = 49M },
+            new OrderRow { ProductID = 2, Quantity = 2, UnitPrice = 29M }
+        };
+        var orderRows2 = new List<OrderRow>
+        {
+            new OrderRow { ProductID = 3, Quantity = 3, UnitPrice = 39M},
+            new OrderRow { ProductID = 4, Quantity = 4, UnitPrice = 9M}
+        };
+
+        db.Orders.AddRange(
+            new Order { OrderDate = DateTime.Now.AddDays(-14), Status = "Pending", CustomerID = 1, OrderRows = orderRows1, TotalAmount = orderRows1.Sum(o => o.UnitPrice * o.Quantity) },
+            new Order { OrderDate = DateTime.Now.AddDays(-30), Status = "Pending", CustomerID = 2, OrderRows = orderRows2, TotalAmount = orderRows2.Sum(o => o.UnitPrice * o.Quantity) }
+            );
+        await db.SaveChangesAsync();
+        Console.WriteLine("DB Orders Seeded");
+    }
 
     // CRUD: Create, Read, Update, Delete
     while (true)
     {
         Console.WriteLine("\nUsage: <entity> <command> (Example: customers list)");
-        Console.WriteLine("Entities: customers | orders | orderRows | products | exit");
-        Console.WriteLine("Commands: list | add | delete <id> | edit <id> | summary (for orders only)");
+        Console.WriteLine("Entities: customers | orders | orderRows | products | clearall | exit");
+        Console.WriteLine("Commands: list | add | delete <id> | edit <id> | summary (orders) | ordercount (customers) | sales (products)");
+        Console.Write("> ");
         var choice = Console.ReadLine()?.Trim() ?? string.Empty;
 
         // If user input is empty, do nothing
@@ -48,6 +82,12 @@ using (var db = new ShopContext())
         if (choice.Equals("exit", StringComparison.OrdinalIgnoreCase))
         {
             break; // ... Jump out of loop to exit program
+        }
+
+        // If user input is "clearall" 
+        if (choice.Equals("clearall", StringComparison.OrdinalIgnoreCase)) {
+            await ClearAll();
+            continue;
         }
 
         // Split string choice into array by space
@@ -83,6 +123,9 @@ using (var db = new ShopContext())
                             break;
                         }
                         await EditAsync(entChoice, idEdit);
+                        break;
+                    case "ordercount":
+                        await OrderCountAsync();
                         break;
                 }
                 break;
@@ -171,6 +214,9 @@ using (var db = new ShopContext())
                         }
                         await EditAsync(entChoice, idEdit);
                         break;
+                    case "sales":
+                        await ProductSalesAsync(); 
+                        break;
                 }
                 break;
         }
@@ -202,11 +248,12 @@ static async Task ListAsync(string entity)
             foreach (var customer in customers)
             {
                 Console.WriteLine(customer.CustomerID + " | " + customer.Name + " | " + customer.Email + " | " + customer.City + " | " + customer.Orders?.Count);
-                Console.WriteLine(customer.Name + "'s orders:");
+                Console.Write(customer.Name + "'s orders: ");
                 foreach (var order in customer.Orders)
                 {
-                    Console.Write(order.OrderID + " | " + order.TotalAmount);
+                    Console.WriteLine(order.OrderID + " | " + order.TotalAmount);
                 }
+                Console.WriteLine("\n");
             }
 
             break;
@@ -216,14 +263,14 @@ static async Task ListAsync(string entity)
             var orders = await db.Orders
                                     .AsNoTracking()
                                     .Include(order => order.Customer)
-                                    .OrderBy(orders => orders.OrderID)
+                                    .OrderBy(order => order.OrderID)
                                     .ToListAsync();
 
             Console.WriteLine("ID | Customer | Order Date | Status | Total Amount | Rows in Order");
 
             foreach (var order in orders)
             {
-                Console.WriteLine(order.OrderID + " | " + order.Customer?.Name + " | " + order.OrderDate + " | " + order.Status + " | " + order.OrderRows?.Count);
+                Console.WriteLine(order.OrderID + " | " + order.Customer?.Name + " | " + order.OrderDate + " | " + order.Status + " | " + order.TotalAmount + " | " +  order.OrderRows?.Count);
             }
 
             break;
@@ -238,7 +285,7 @@ static async Task ListAsync(string entity)
             Console.WriteLine("ID | Exists in OrderID: | Product | Quantity | Unit Price");
             foreach (var orderrow in orderrows)
             {
-                Console.WriteLine(orderrow.OrderRowID + " | " + orderrow.Order?.OrderID + " | " + orderrow.Product?.Name + " | " + orderrow.Quantity + " | " + orderrow.UnitPrice);
+                Console.WriteLine(orderrow.OrderRowID + " | " + orderrow.OrderID + " | " + orderrow.Product?.Name + " | " + orderrow.Quantity + " | " + orderrow.UnitPrice);
             }
             break;
 
@@ -357,14 +404,14 @@ static async Task AddAsync(string entity)
                 }
 
                 Console.WriteLine("ProductID: ");
-                if (!int.TryParse(Console.ReadLine(), out var productID))
+                if (!int.TryParse(Console.ReadLine(), out var OproductID))
                 {
                     Console.WriteLine("Product not found");
                     continue;
                 }
 
                 Console.Write("Quantity: ");
-                if (!int.TryParse(Console.ReadLine(), out var quantity) || quantity <= 0)
+                if (!int.TryParse(Console.ReadLine(), out var Oquantity) || Oquantity <= 0)
                 {
                     Console.WriteLine("Invalid input of quantity");
                     continue;
@@ -372,8 +419,8 @@ static async Task AddAsync(string entity)
 
                 var row = new OrderRow
                 {
-                    ProductID = productID,
-                    Quantity = quantity,
+                    ProductID = OproductID,
+                    Quantity = Oquantity,
                 };
 
                 orderRows.Add(row);
@@ -397,6 +444,30 @@ static async Task AddAsync(string entity)
 
         // Chosen entity = orderRows
         case "orderrows":
+            Console.WriteLine("Add a row to an order\nOrder ID: ");
+            if (!int.TryParse(Console.ReadLine(), out var ORorderID) ||
+                !db.Orders.Any(o => o.OrderID == ORorderID))
+            {
+                Console.WriteLine("Error: Unknown Order ID");
+            }
+
+            // Add product to row
+            Console.WriteLine("Add a product to the row by its ID: ");
+            await ListAsync("products");
+            if (!int.TryParse(Console.ReadLine(), out var ORproductID) ||
+                !db.Products.Any(p => p.ProductID == ORproductID))
+            {
+                Console.WriteLine("Error: Unknown Product ID");
+            }
+
+            // Set quantity 
+            Console.WriteLine("Quantity of the product: ");
+            if (!int.TryParse(Console.ReadLine(), out var ORquantity) || ORquantity <= 0)
+            {
+                Console.WriteLine("Invalid input of quantity");
+                return;
+            }
+
 
             break;
 
@@ -464,6 +535,23 @@ static async Task DeleteAsync(string entity, int id)
 
         // Chosen entity = products
         case "products":
+            var product = await db.Products.FirstOrDefaultAsync(p => p.ProductID == id);
+            if (product == null)
+            {
+                Console.WriteLine("Product not found");
+                return;
+            }
+            db.Products.Remove(product);
+
+            try
+            {
+                await db.SaveChangesAsync();
+                Console.WriteLine("Deleted product");
+            }
+            catch (DbUpdateException exception)
+            {
+                Console.WriteLine(exception.Message);
+            }
 
             break;
 
@@ -483,4 +571,67 @@ static async Task ListOrderSummary()
     {
         Console.WriteLine(summary.OrderID + " | " + summary.OrderDate + " | " + summary.TotalAmount + " | " + summary.CustomerEmail);
     }
+}
+
+static async Task OrderCountAsync()
+{
+    using var db = new ShopContext();
+
+    var orderCounts = await db.CustomerOrderCounts.AsNoTracking().ToListAsync();
+
+    Console.WriteLine(" ID | Name | Email | Number of Orders");
+    foreach (var orderCount in orderCounts)
+    {
+        Console.WriteLine(orderCount.CustomerID + " | " + orderCount.CustomerName + " | " + orderCount.CustomerEmail + " | " + orderCount.numberOfOrders);
+    }
+
+}
+
+static async Task ProductSalesAsync()
+{
+    using var db = new ShopContext();
+
+    var sales = await db.ProductSales.AsNoTracking().ToListAsync();
+
+    Console.WriteLine("ID | Name | Total Quantity Sold");
+    foreach (var sale in sales)
+    {
+        Console.WriteLine(sale.ProductID + " | " + sale.ProductName + " | " + sale.TotalQuantitySold);
+    }
+}
+
+static async Task ClearAll()
+{
+    Console.WriteLine("Are you sure you want to clear all entries in the system? (Y/N)");
+    if (!Console.ReadLine().Equals("y", StringComparison.OrdinalIgnoreCase))
+    {
+        return;
+    }
+
+    using var db = new ShopContext();
+
+    try
+    {
+        Console.WriteLine("Deleting all entries...");
+
+        Console.WriteLine("Deleting all Order Rows");
+        await db.OrderRows.ExecuteDeleteAsync();
+
+        Console.WriteLine("Deleting all orders");
+        await db.Orders.ExecuteDeleteAsync();
+
+        Console.WriteLine("Deleting all products");
+        await db.Products.ExecuteDeleteAsync();
+
+        Console.WriteLine("Deleting all customers");
+        await db.Customers.ExecuteDeleteAsync();
+
+        Console.WriteLine("Successfully deleted all entries\nTo re-seed entires, exit and restart.");
+    }
+
+    catch (DbUpdateException exception)
+    {
+        Console.WriteLine(exception.Message);
+    }
+
 }
