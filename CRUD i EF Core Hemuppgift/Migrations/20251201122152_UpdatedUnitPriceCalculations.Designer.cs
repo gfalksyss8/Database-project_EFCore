@@ -3,6 +3,7 @@ using System;
 using CRUD_i_EF_Core_Hemuppgift;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CRUD_i_EF_Core_Hemuppgift.Migrations
 {
     [DbContext(typeof(ShopContext))]
-    partial class ShopContextModelSnapshot : ModelSnapshot
+    [Migration("20251201122152_UpdatedUnitPriceCalculations")]
+    partial class UpdatedUnitPriceCalculations
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.11");
@@ -44,27 +47,6 @@ namespace CRUD_i_EF_Core_Hemuppgift.Migrations
                         .IsUnique();
 
                     b.ToTable("Customers");
-                });
-
-            modelBuilder.Entity("CRUD_i_EF_Core_Hemuppgift.Models.CustomerOrderCount", b =>
-                {
-                    b.Property<string>("CustomerEmail")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("CustomerID")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("CustomerName")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("numberOfOrders")
-                        .HasColumnType("INTEGER");
-
-                    b.ToTable((string)null);
-
-                    b.ToView("CustomerOrderCountView", (string)null);
                 });
 
             modelBuilder.Entity("CRUD_i_EF_Core_Hemuppgift.Models.Order", b =>
@@ -162,23 +144,6 @@ namespace CRUD_i_EF_Core_Hemuppgift.Migrations
                     b.HasKey("ProductID");
 
                     b.ToTable("Products");
-                });
-
-            modelBuilder.Entity("CRUD_i_EF_Core_Hemuppgift.Models.ProductSale", b =>
-                {
-                    b.Property<int>("ProductID")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("ProductName")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("TotalQuantitySold")
-                        .HasColumnType("INTEGER");
-
-                    b.ToTable((string)null);
-
-                    b.ToView("ProductSalesView", (string)null);
                 });
 
             modelBuilder.Entity("CRUD_i_EF_Core_Hemuppgift.Models.Order", b =>

@@ -29,6 +29,51 @@ namespace CRUD_i_EF_Core_Hemuppgift.Migrations
             LEFT JOIN OrderRows orw ON orw.OrderID = o.OrderID
             GROUP BY o.OrderID, o.OrderDate, c.Name, c.Email;
             ");
+
+            // AFTER INSERT
+            migrationBuilder.Sql(@"
+            CREATE TRIGGER IF NOT EXISTS trg_OrderRow_Insert
+            AFTER INSERT ON OrderRows
+            BEGIN
+                UPDATE Orders
+                SET TotalAmount = (
+                                SELECT IFNULL(SUM(Quantity * UnitPrice), 0) 
+                                FROM OrderRows 
+                                WHERE OrderID = NEW.OrderID
+                                )
+                                WHERE OrderID = NEW.OrderID;
+                END;
+            ");
+
+            // AFTER UPDATE
+            migrationBuilder.Sql(@"
+            CREATE TRIGGER IF NOT EXISTS trg_OrderRow_Update
+            AFTER UPDATE ON OrderRows
+            BEGIN
+                UPDATE Orders
+                SET TotalAmount = ( 
+                                SELECT IFNULL(SUM(Quantity * UnitPrice), 0)
+                                FROM OrderRows 
+                                WHERE OrderID = NEW.OrderID
+                                )
+                WHERE OrderID = NEW.OrderID;
+            END;
+            ");
+
+            // AFTER DELETE
+            migrationBuilder.Sql(@"
+            CREATE TRIGGER IF NOT EXISTS trg_OrderRow_Delete
+            AFTER DELETE ON OrderRows
+            BEGIN
+                Update Orders
+                SET TotalAmount = ( 
+                                SELECT IFNULL(SUM(Quantity * UnitPrice), 0)
+                                FROM OrderRows 
+                                WHERE OrderID = NEW.OrderID
+                                )
+                WHERE OrderID = NEW.OrderID;
+            END;
+            ");
         }
 
         /// <inheritdoc />
@@ -36,6 +81,16 @@ namespace CRUD_i_EF_Core_Hemuppgift.Migrations
         {
             migrationBuilder.Sql(@"
             DROP VIEW IF EXISTS OrderSummaryView
+            ");
+
+            migrationBuilder.Sql(@"
+            DROP TRIGGER IF EXISTS trg_OrderRow_Insert
+            ");
+            migrationBuilder.Sql(@"
+            DROP TRIGGER IF EXISTS trg_OrderRow_Update
+            ");
+            migrationBuilder.Sql(@"
+            DROP TRIGGER IF EXISTS trg_OrderRow_Delete
             ");
         }
     }
