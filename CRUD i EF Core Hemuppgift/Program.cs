@@ -151,10 +151,36 @@ using (var db = new ShopContext())
     if (!await db.Customers.AnyAsync())
     {
         // TODO: Local customer seeding
+        List<string> salts = new List<string>();
+        for (int i = 0; i < 3; i++)
+        {
+            salts.Add(EncryptionHelper.GenerateSalt());
+        }
+
         db.Customers.AddRange(
-            new Customer { Name = "Erik", Email = "erik.stattebratt@gmail.com", City = "Malmö", Phone = string.Empty},
-            new Customer { Name= "Adam", Email = "adam.fillibang@gmail.com", City = "Stockholm", Phone = string.Empty} 
+            new Customer
+            {
+                Name = "Erik",
+                Email = "erik.stattebratt@gmail.com",
+                City = "Malmö",
+                Phone = EncryptionHelper.HashWithSalt("070515-ERIK", salts[0])
+            },
+            new Customer
+            {
+                Name = "Adam",
+                Email = "adam.fillibang@gmail.com",
+                City = "Stockholm",
+                Phone = EncryptionHelper.HashWithSalt("070515-ADAM", salts[1])
+            },
+            new Customer
+            {
+                Name = "Lisa",
+                Email = "lisa.foley@gmail.com",
+                City = "Gothenburg",
+                Phone = EncryptionHelper.HashWithSalt("070515-LISA", salts[2])
+            }
             );
+
         await db.SaveChangesAsync();
         Console.WriteLine("DB Customers Seeded");
     }
@@ -167,7 +193,15 @@ using (var db = new ShopContext())
             new Product { Name = "Hammer", Price = 49M },
             new Product { Name = "Screwdriver", Price = 29M },
             new Product { Name = "Wrench", Price = 39M },
-            new Product { Name = "Pencil", Price = 9M }
+            new Product { Name = "Pencil", Price = 9M },
+            new Product { Name = "Notebook", Price = 19M },
+            new Product { Name = "Eraser", Price = 4M },
+            new Product { Name = "Ruler", Price = 14M },
+            new Product { Name = "Drill", Price = 99M },
+            new Product { Name = "Saw", Price = 79M },
+            new Product { Name = "Level", Price = 24M },
+            new Product { Name = "Tape Measure", Price = 34M },
+            new Product { Name = "Chisel", Price = 44M }
             );
         await db.SaveChangesAsync();
         Console.WriteLine("DB Products Seeded");
@@ -186,10 +220,16 @@ using (var db = new ShopContext())
             new OrderRow { ProductID = 3, Quantity = 3, UnitPrice = 39M},
             new OrderRow { ProductID = 4, Quantity = 4, UnitPrice = 9M}
         };
+        var orderRows3 = new List<OrderRow>
+        {
+            new OrderRow { ProductID = 5, Quantity = 10, UnitPrice = 19M},
+            new OrderRow { ProductID = 6, Quantity = 6, UnitPrice = 4M}
+        };
 
         db.Orders.AddRange(
             new Order { OrderDate = DateTime.Now.AddDays(-14), Status = "Pending", CustomerID = 1, OrderRows = orderRows1, TotalAmount = orderRows1.Sum(o => o.UnitPrice * o.Quantity) },
-            new Order { OrderDate = DateTime.Now.AddDays(-30), Status = "Pending", CustomerID = 2, OrderRows = orderRows2, TotalAmount = orderRows2.Sum(o => o.UnitPrice * o.Quantity) }
+            new Order { OrderDate = DateTime.Now.AddDays(-30), Status = "Pending", CustomerID = 2, OrderRows = orderRows2, TotalAmount = orderRows2.Sum(o => o.UnitPrice * o.Quantity) },
+            new Order { OrderDate = DateTime.Now, Status = "Pending", CustomerID = 3, OrderRows = orderRows3, TotalAmount = orderRows3.Sum(o => o.UnitPrice * o.Quantity) }
             );
         await db.SaveChangesAsync();
         Console.WriteLine("DB Orders Seeded");
@@ -369,68 +409,273 @@ static async Task ListAsync(string entity)
     {
         // Chosen entity = customers
         case "customers":
-            var customers = await db.Customers
+            var queryCustomers = db.Customers
                                     .AsNoTracking()
                                     .Include(customers => customers.Orders)
-                                    .OrderBy(customers => customers.CustomerID)
-                                    .ToListAsync();
+                                    .OrderBy(customers => customers.CustomerID);
 
-            Console.WriteLine("ID | Name | Email | City | Total Orders");
-
-            foreach (var customer in customers)
+            // Show all results if less than 5 customers
+            if (await queryCustomers.CountAsync() < 5)
             {
-                Console.WriteLine(customer.CustomerID + " | " + customer.Name + " | " + customer.Email + " | " + customer.City + " | " + customer.Orders?.Count);
-                Console.WriteLine(" - " + customer.Name + "'s orders: Order ID | Cost of Order");
-                foreach (var order in customer.Orders)
+                var customers = await queryCustomers.ToListAsync();
+
+                Console.WriteLine("ID | Name | Email | City | Phone (Hashed) | Total Orders");
+
+                foreach (var customer in customers)
                 {
-                    Console.WriteLine(" - " + order.OrderID + " | " + order.TotalAmount);
+                    Console.WriteLine(customer.CustomerID + " | " + customer.Name + " | " + customer.Email + " | " + customer.City + " | " + customer.Phone + " | " + customer.Orders?.Count);
+                    Console.WriteLine(" - " + customer.Name + "'s orders: Order ID | Cost of Order");
+                    foreach (var order in customer.Orders)
+                    {
+                        Console.WriteLine(" - " + order.OrderID + " | " + order.TotalAmount);
+                    }
                 }
             }
 
+            // Show paged results if more than 5 customers
+            else if (await queryCustomers.CountAsync() >= 5)
+            {
+                int page = 1;
+                var totalCount = await queryCustomers.CountAsync();
+                var totalPages = (int)Math.Ceiling(totalCount / 5.0);
+
+                while (true)
+                {
+                    var customers = await queryCustomers
+                    .Skip((page - 1) * 5)
+                    .Take(5)
+                    .ToListAsync();
+
+                                  // Show paged customers
+                    Console.WriteLine("ID | Name | Email | City | Phone (Hashed) | Total Orders");
+
+                    foreach (var customer in customers)
+                    {
+                        Console.WriteLine(customer.CustomerID + " | " + customer.Name + " | " + customer.Email + " | " + customer.City + " | " + customer.Phone + " | " + customer.Orders?.Count);
+                        Console.WriteLine(" - " + customer.Name + "'s orders: Order ID | Cost of Order");
+                        foreach (var order in customer.Orders)
+                        {
+                            Console.WriteLine(" - " + order.OrderID + " | " + order.TotalAmount);
+                        }
+                    }
+
+                    Console.WriteLine("Page " + page + "/" + totalPages + ". Commands: previousPage, nextPage, back");
+
+                    var command = Console.ReadLine()?.Trim().ToLowerInvariant();
+                    if (command == "nextpage" && page < totalPages)
+                    {
+                        page++;
+                    }
+                    else if (command == "previouspage" && page > 1)
+                    {
+                        page--;
+                    }
+                    else if (command == "back")
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid command");
+                        continue;
+                    }
+                }
+            }
             break;
 
         // Chosen entity = orders
         case "orders":
-            var orders = await db.Orders
+            var queryOrders = db.Orders
                                     .AsNoTracking()
                                     .Include(order => order.Customer)
                                     .Include(order => order.OrderRows)
-                                    .OrderBy(order => order.OrderID)
-                                    .ToListAsync();
+                                    .OrderBy(order => order.OrderID);
 
-            Console.WriteLine("ID | Customer | Order Date | Status | Total Amount | Rows in Order");
-
-            foreach (var order in orders)
+            // Show all results if less than 5 orders
+            if (await queryOrders.CountAsync() < 5)
             {
-                Console.WriteLine(order.OrderID + " | " + order.Customer?.Name + " | " + order.OrderDate + " | " + order.Status + " | " + order.TotalAmount + " | " +  order.OrderRows?.Count);
+                var orders = await queryOrders.ToListAsync();
+
+                Console.WriteLine("ID | Customer | Order Date | Status | Total Amount | Rows in Order");
+
+                foreach (var order in orders)
+                {
+                    Console.WriteLine(order.OrderID + " | " + order.Customer?.Name + " | " + order.OrderDate + " | " + order.Status + " | " + order.TotalAmount + " | " + order.OrderRows?.Count);
+                }
             }
 
+            // Show paged results if more than 5 orders
+            else if (await queryOrders.CountAsync() >= 5)
+            {
+                int page = 1;
+                var totalCount = await queryOrders.CountAsync();
+                var totalPages = (int)Math.Ceiling(totalCount / 5.0);
+
+                while (true)
+                {
+                    var orders = await queryOrders
+                        .Skip((page - 1) * 5)
+                        .Take(5)
+                        .ToListAsync();
+
+                    // Show paged orders
+                    Console.WriteLine("ID | Customer | Order Date | Status | Total Amount | Rows in Order");
+
+                    foreach (var order in orders)
+                    {
+                        Console.WriteLine(order.OrderID + " | " + order.Customer?.Name + " | " + order.OrderDate + " | " + order.Status + " | " + order.TotalAmount + " | " + order.OrderRows?.Count);
+                    }
+
+                    Console.WriteLine("Page " + page + "/" + totalPages + ". Commands: previousPage, nextPage, back");
+
+                    var command = Console.ReadLine()?.Trim().ToLowerInvariant();
+                    if (command == "nextpage" && page < totalPages)
+                    {
+                        page++;
+                    }
+                    else if (command == "previouspage" && page > 1)
+                    {
+                        page--;
+                    }
+                    else if (command == "back")
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid command");
+                        continue;
+                    }
+                }
+            }
             break;
 
         // Chosen entity = orderRows
         case "orderrows":
-            var orderrows = await db.OrderRows
+            var queryOrderrows = db.OrderRows
                                     .AsNoTracking()
                                     .Include(orderr => orderr.Product)
-                                    .OrderBy(orderr => orderr.OrderID)
-                                    .ToListAsync();
+                                    .OrderBy(orderr => orderr.OrderID);
+
+            // show all results if less than 5 order rows
             Console.WriteLine("ID | Exists in OrderID: | Product | Quantity | Unit Price");
-            foreach (var orderrow in orderrows)
+            if (await queryOrderrows.CountAsync() < 5) 
             {
-                Console.WriteLine(orderrow.OrderRowID + " | " + orderrow.OrderID + " | " + orderrow.Product?.Name + " | " + orderrow.Quantity + " | " + orderrow.UnitPrice);
+                var orderrows = await queryOrderrows.ToListAsync();
+                foreach (var orderrow in orderrows)
+                {
+                    Console.WriteLine(orderrow.OrderRowID + " | " + orderrow.OrderID + " | " + orderrow.Product?.Name + " | " + orderrow.Quantity + " | " + orderrow.UnitPrice);
+                }
+            }
+
+            // Show paged results if more than 5 orders
+            else if (await queryOrderrows.CountAsync() >= 5)
+            {
+                int page = 1;
+                var totalCount = await queryOrderrows.CountAsync();
+                var totalPages = (int)Math.Ceiling(totalCount / 5.0);
+
+                while (true)
+                {
+                    var orderrows = await queryOrderrows
+                        .Skip((page - 1) * 5)
+                        .Take(5)
+                        .ToListAsync();
+
+                    // Show paged orders
+                    Console.WriteLine("ID | Exists in OrderID: | Product | Quantity | Unit Price");
+
+                    foreach (var orderrow in orderrows)
+                    {
+                        Console.WriteLine(orderrow.OrderRowID + " | " + orderrow.OrderID + " | " + orderrow.Product?.Name + " | " + orderrow.Quantity + " | " + orderrow.UnitPrice);
+                    }
+
+                    Console.WriteLine("Page " + page + "/" + totalPages + ". Commands: previousPage, nextPage, back");
+
+                    var command = Console.ReadLine()?.Trim().ToLowerInvariant();
+                    if (command == "nextpage" && page < totalPages)
+                    {
+                        page++;
+                    }
+                    else if (command == "previouspage" && page > 1)
+                    {
+                        page--;
+                    }
+                    else if (command == "back")
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid command");
+                        continue;
+                    }
+                }
             }
             break;
 
         // Chosen entity = products
         case "products":
-            var products = await db.Products
+            var queryProducts = db.Products
                                     .AsNoTracking()
-                                    .OrderBy(p => p.ProductID)
-                                    .ToListAsync();
-            Console.WriteLine("ID | Name | Price");
-            foreach (var product in products)
+                                    .OrderBy(p => p.ProductID);
+
+            // Show all results if less than 5 products
+            if (await queryProducts.CountAsync() < 5)
             {
-                Console.WriteLine(product.ProductID + " | " + product.Name + " | " + product.Price);
+                var products = await queryProducts.ToListAsync();
+
+                Console.WriteLine("ID | Name | Price");
+
+                foreach (var product in products)
+                {
+                    Console.WriteLine(product.ProductID + " | " + product.Name + " | " + product.Price);
+                }
+            }
+
+            // Show paged results if more than 5 products
+            else if (await queryProducts.CountAsync() >= 5)
+            {
+                int page = 1;
+                var totalCount = await queryProducts.CountAsync();
+                var totalPages = (int)Math.Ceiling(totalCount / 5.0);
+
+                while (true)
+                {
+                    var products = await queryProducts
+                        .Skip((page - 1) * 5)
+                        .Take(5)
+                        .ToListAsync();
+
+                    // Show paged products
+                    Console.WriteLine("ID | Name | Price");
+
+                    foreach (var product in products)
+                    {
+                        Console.WriteLine(product.ProductID + " | " + product.Name + " | " + product.Price);
+                    }
+
+                    Console.WriteLine("Page " + page + "/" + totalPages + ". Commands: previousPage, nextPage, back");
+
+                    var command = Console.ReadLine()?.Trim().ToLowerInvariant();
+                    if (command == "nextpage" && page < totalPages)
+                    {
+                        page++;
+                    }
+                    else if (command == "previouspage" && page > 1)
+                    {
+                        page--;
+                    }
+                    else if (command == "back")
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid command");
+                        continue;
+                    }
+                }
             }
             break;
 

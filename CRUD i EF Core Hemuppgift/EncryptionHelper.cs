@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -42,6 +44,24 @@ namespace CRUD_i_EF_Core_Hemuppgift
             }
 
             return System.Text.Encoding.UTF8.GetString(bytes);
+        }
+
+        public static string GenerateSalt()
+        {
+            var saltBytes = new byte[16];
+            RandomNumberGenerator.Fill(saltBytes);
+            return Convert.ToBase64String(saltBytes);
+        }
+
+        public static string HashWithSalt(string password, string salt)
+        {
+            using (var sha256 = SHA256.Create())
+            {
+                var combinedBytes = System.Text.Encoding.UTF8.GetBytes(password + salt);
+                var hashBytes = sha256.ComputeHash(combinedBytes);
+                return Convert.ToBase64String(hashBytes);
+            }
+
         }
     }
 }
