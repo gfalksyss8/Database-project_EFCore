@@ -4,6 +4,138 @@ using CRUD_i_EF_Core_Hemuppgift.Models;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 
+// JSON CRUD Testing
+/*
+var service = new CustomerService();
+while (true)
+{
+    Console.WriteLine("1 = list | 2 = add | 3 = update | 4 = delete | 5 = list per city | 6 = exit");
+    var input = Console.ReadLine()?.Trim();
+    if (input == "6") break;
+    switch (input)
+    {
+        case "1":
+            await ListCustomerAsync(service);
+            break;
+        case "2":
+            await AddCustomersAsync(service);
+            break;
+        case "3":
+            await UpdateCustomerAsync(service);
+            break;
+        case "4":
+            await DeleteCustomerAsync(service);
+            break;
+        case "5":
+            await ListPerCityAsync(service);
+            break;
+        default:
+            Console.WriteLine("Invalid input");
+            break;
+    }
+}
+static async Task DeleteCustomerAsync(CustomerService customerService)
+{
+    var customers = await customerService.LoadAllAsync();
+    if (!customers.Any())
+    {
+        Console.WriteLine("No customers");
+        return;
+    }
+    await ListCustomerAsync(customerService);
+
+    if (!int.TryParse(Console.ReadLine(), out int ID))
+    {
+        Console.WriteLine("Invalid customer ID"); 
+        return;
+    }
+    await customerService.DeleteAsync(ID);
+    Console.WriteLine("Customer deleted");
+}
+
+static async Task UpdateCustomerAsync(CustomerService customerService)
+{
+    var customers = await customerService.LoadAllAsync();
+    if (!customers.Any())
+    {
+        Console.WriteLine("No customers");
+        return;
+    }
+    await ListCustomerAsync(customerService);
+
+    Console.Write("Customer to edit (by ID): ");
+    var input = int.TryParse(Console.ReadLine(), out int ID);
+    Console.Write("Name: ");
+    var name = Console.ReadLine() ?? string.Empty;
+    Console.Write("Email: ");
+    var email = Console.ReadLine() ?? string.Empty;
+    Console.Write("City: ");
+    var city = Console.ReadLine() ?? string.Empty;
+    Console.Write("Phone: ");
+    var phone = Console.ReadLine() ?? string.Empty;
+
+    await customerService.UpdateAsync(ID, name, email, city, phone);
+    Console.WriteLine("Customer updated");
+}
+static async Task AddCustomersAsync(CustomerService customerService)
+{
+    Console.Write("Name: ");
+    var name = Console.ReadLine() ?? "";
+    Console.Write("Email: ");
+    var email = Console.ReadLine() ?? "";
+    Console.Write("City: ");
+    var city = Console.ReadLine() ?? "";
+    Console.Write("Phone: ");
+    var phone = Console.ReadLine() ?? "";
+
+    var customer = new Customer { Name = name, Email = email, City = city, Phone = phone };
+    await customerService.AddAsync(customer);
+    Console.WriteLine("Customer added");
+}
+
+static async Task ListCustomerAsync(CustomerService customerService)
+{
+    var customers = await customerService.LoadAllAsync();
+    if (!customers.Any())
+    {
+        Console.WriteLine("No customers");
+        return;
+    }
+
+    Console.WriteLine("ID | Name | Email | City | Phone");
+    foreach (var customer in customers)
+    {
+        Console.WriteLine($"{customer.CustomerID} | {customer.Name} | {customer.Email} | {customer.City} | {customer.Phone}");
+    }
+}
+static async Task ListPerCityAsync(CustomerService customerService)
+{
+    var customers = await customerService.LoadAllAsync();
+    if (!customers.Any())
+    {
+        Console.WriteLine("No customers");
+        return;
+    }
+
+    Console.Write("City: ");
+    var city = Console.ReadLine()?.Trim();
+    var sorted = customers
+                    .Where(c => c.City == city)
+                    .OrderByDescending(c => c.CustomerID);
+
+    if (!sorted.Any())
+    {
+        Console.WriteLine("No customers in chosen city");
+        return;
+    }
+
+    Console.WriteLine("ID | Name | Email | City | Phone");
+    foreach (var customer in sorted)
+    {
+        Console.WriteLine($"{customer.CustomerID} | {customer.Name} | {customer.Email} | {customer.City} | {customer.Phone}");
+    }
+}
+*/
 Console.WriteLine("DB: " + Path.Combine(AppContext.BaseDirectory, "shop.db"));
 
 // Ensure DB + migrations + seeding
@@ -20,8 +152,8 @@ using (var db = new ShopContext())
     {
         // TODO: Local customer seeding
         db.Customers.AddRange(
-            new Customer { Name = "Erik", Email = "erik.stattebratt@gmail.com", City = "Malmö"},
-            new Customer { Name= "Adam", Email = "adam.fillibang@gmail.com", City = "Stockholm"} 
+            new Customer { Name = "Erik", Email = "erik.stattebratt@gmail.com", City = "Malmö", Phone = string.Empty},
+            new Customer { Name= "Adam", Email = "adam.fillibang@gmail.com", City = "Stockholm", Phone = string.Empty} 
             );
         await db.SaveChangesAsync();
         Console.WriteLine("DB Customers Seeded");
@@ -248,12 +380,11 @@ static async Task ListAsync(string entity)
             foreach (var customer in customers)
             {
                 Console.WriteLine(customer.CustomerID + " | " + customer.Name + " | " + customer.Email + " | " + customer.City + " | " + customer.Orders?.Count);
-                Console.Write(customer.Name + "'s orders: ");
+                Console.WriteLine(" - " + customer.Name + "'s orders: Order ID | Cost of Order");
                 foreach (var order in customer.Orders)
                 {
-                    Console.WriteLine(order.OrderID + " | " + order.TotalAmount);
+                    Console.WriteLine(" - " + order.OrderID + " | " + order.TotalAmount);
                 }
-                Console.WriteLine("\n");
             }
 
             break;
@@ -263,6 +394,7 @@ static async Task ListAsync(string entity)
             var orders = await db.Orders
                                     .AsNoTracking()
                                     .Include(order => order.Customer)
+                                    .Include(order => order.OrderRows)
                                     .OrderBy(order => order.OrderID)
                                     .ToListAsync();
 
@@ -609,29 +741,52 @@ static async Task ClearAll()
     }
 
     using var db = new ShopContext();
+    var orderRows = await db.OrderRows.ToListAsync();
+    var orders = await db.Orders.ToListAsync();
+    var products = await db.Products.ToListAsync();
+    var customers = await db.Customers.ToListAsync();
 
     try
     {
         Console.WriteLine("Deleting all entries...");
 
         Console.WriteLine("Deleting all Order Rows");
-        await db.OrderRows.ExecuteDeleteAsync();
+        foreach (var row in orderRows)
+        {
+            db.OrderRows.Remove(row);
+        }
+        await db.SaveChangesAsync();
 
         Console.WriteLine("Deleting all orders");
-        await db.Orders.ExecuteDeleteAsync();
+        foreach (var order in orders)
+        {
+            db.Orders.Remove(order);
+        }
+        await db.SaveChangesAsync();
 
         Console.WriteLine("Deleting all products");
-        await db.Products.ExecuteDeleteAsync();
+        foreach (var product in products)
+        {
+            db.Products.Remove(product);
+        }
+        await db.SaveChangesAsync();
 
         Console.WriteLine("Deleting all customers");
-        await db.Customers.ExecuteDeleteAsync();
+        foreach (var customer in customers)
+        {
+            db.Customers.Remove(customer);
+        }
 
+        await db.SaveChangesAsync();
+        Console.WriteLine("Resetting SQLite sequences");
+        await db.Database.ExecuteSqlRawAsync("DELETE FROM sqlite_sequence;");
         Console.WriteLine("Successfully deleted all entries\nTo re-seed entires, exit and restart.");
     }
 
     catch (DbUpdateException exception)
     {
-        Console.WriteLine(exception.Message);
+        Console.WriteLine("ERROR:");
+        Console.WriteLine(exception.InnerException?.Message ?? exception.Message);
     }
 
 }

@@ -18,6 +18,9 @@ namespace CRUD_i_EF_Core_Hemuppgift.Models
         [Required, MaxLength(255)]
         public string City { get; set; } = null;
 
+        [MaxLength(100)]
+        public string Phone { get; set; }
+
         // Foreign Key
         // Customer can have many orders (0..N)
         public List<Order> Orders { get; set; } = new();

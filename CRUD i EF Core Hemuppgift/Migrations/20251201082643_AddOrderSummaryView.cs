@@ -41,7 +41,7 @@ namespace CRUD_i_EF_Core_Hemuppgift.Migrations
                                 FROM OrderRows 
                                 WHERE OrderID = NEW.OrderID
                                 )
-                                WHERE OrderID = NEW.OrderID;
+                    WHERE OrderID = NEW.OrderID;
                 END;
             ");
 
@@ -69,9 +69,9 @@ namespace CRUD_i_EF_Core_Hemuppgift.Migrations
                 SET TotalAmount = ( 
                                 SELECT IFNULL(SUM(Quantity * UnitPrice), 0)
                                 FROM OrderRows 
-                                WHERE OrderID = NEW.OrderID
+                                WHERE OrderID = OLD.OrderID
                                 )
-                WHERE OrderID = NEW.OrderID;
+                WHERE OrderID = OLD.OrderID;
             END;
             ");
         }

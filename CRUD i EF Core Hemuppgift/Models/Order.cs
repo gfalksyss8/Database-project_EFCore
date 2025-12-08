@@ -16,7 +16,7 @@ namespace CRUD_i_EF_Core_Hemuppgift.Models
         public DateTime OrderDate { get; set; }
 
         [Required, MaxLength(100)]
-        public string Status { get; set; } = null;
+        public string Status { get; set; } = string.Empty;
 
         [Required]
         public decimal TotalAmount { get; set; }
