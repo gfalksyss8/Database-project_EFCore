@@ -125,5 +125,21 @@ namespace CRUD_i_EF_Core_Hemuppgift
 
             await SaveAsync(customers);
         }
+
+        public async Task AddOrderToCustomer(int customerID, Order order)
+        {
+            var customers = await LoadAllAsync();
+            // Find the customer ID for the inputted int ID
+            var customer = customers.FirstOrDefault(c => c.CustomerID == customerID);
+            if (customer == null)
+            {
+                Console.WriteLine("Customer not found");
+                return;
+            }
+
+            customer.Orders.Add(order);
+
+            await SaveAsync(customers);
+        }
     }
 }
