@@ -68,8 +68,7 @@ namespace CRUD_i_EF_Core_Hemuppgift
                 e.Property(c => c.City)
                     .HasMaxLength(255).IsRequired();
 
-                e.Property(c => c.Phone)
-                    .HasMaxLength(100);
+                e.Property(c => c.Phone);
 
                 // Set UNIQUE-index for Email
                 e.HasIndex(c => c.Email).IsUnique();
