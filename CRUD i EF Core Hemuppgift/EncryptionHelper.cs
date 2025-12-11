@@ -63,5 +63,23 @@ namespace CRUD_i_EF_Core_Hemuppgift
             }
 
         }
+
+        public static string HashWithSalt2(string value, string base64salt, int iterations = 100_000, int hashLength = 32)
+        {
+            var saltBytes = Convert.FromBase64String(base64salt);
+            using var pbkdf2 = new Rfc2898DeriveBytes(value, saltBytes, iterations, HashAlgorithmName.SHA256);
+
+            var hashBytes = pbkdf2.GetBytes(hashLength);
+            return Convert.ToBase64String(hashBytes);
+        }
+
+        public static string Verify2(string value, string base64Salt, string expectedBase64Hash)
+        {
+            var computedHash = HashWithSalt2(value, base64Salt);
+            return CryptographicOperations.FixedTimeEquals(
+                Convert.FromBase64String(computedHash),
+                Convert.FromBase64String(expectedBase64Hash)
+            ) ? computedHash : string.Empty;
+        }
     }
 }

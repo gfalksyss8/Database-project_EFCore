@@ -1017,175 +1017,217 @@ while (true)
 
 
     // ADD - Add 1 entry for the chosen entity
-    // TODO: IMPLEMENT PRINT FOR METHODS: (OrderRows, Products)
+    // TODO: IMPLEMENT ADD FOR METHODS: (OrderRows, Products)
     static async Task AddAsync(string entity)
     {
         using var db = new ShopContext();
+        await using var transaction = await db.Database.BeginTransactionAsync();
 
-        switch (entity)
+        try
         {
-            // Chosen entity = customers
-            case "customers":
-                // Name
-                Console.WriteLine("Enter customer's name:");
-                var customerName = Console.ReadLine()?.Trim() ?? string.Empty;
-                // Validate Customer.Name
-                if (string.IsNullOrEmpty(customerName) || customerName.Length > 255)
-                {
-                    Console.WriteLine("Name is required, and cannot exceed 255 characters");
-                    return;
-                }
-
-                // Email
-                Console.WriteLine("Enter customer email: ");
-                var customerEmail = Console.ReadLine()?.Trim() ?? string.Empty;
-                // Validate Customer.Email
-                if (string.IsNullOrEmpty(customerEmail) || customerEmail.Length > 255)
-                {
-                    Console.WriteLine("Email is required, and cannot exceed 255 characters");
-                    return;
-                }
-                else if (db.Customers.Any(c => c.Email == customerEmail))
-                {
-                    Console.WriteLine("Email already exists");
-                    return;
-                }
-
-                // City
-                Console.WriteLine("Enter city: ");
-                var customerCity = Console.ReadLine()?.Trim() ?? string.Empty;
-                // Validate Customer.City
-                if (string.IsNullOrEmpty(customerCity) || customerCity.Length > 255)
-                {
-                    Console.WriteLine("City is required, and cannot exceed 255 characters");
-                    return;
-                }
-
-                // Add all inputs to DB
-                db.Customers.Add(new Customer { Name = customerName, Email = customerEmail, City = customerCity });
-                // Try to save DB
-                try
-                {
-                    await db.SaveChangesAsync();
-                    Console.WriteLine("Customer successfully added");
-                }
-                catch (DbUpdateException failedSavingException)
-                {
-                    Console.WriteLine("DB Saving error: " + failedSavingException.Message);
-                }
-
-                break;
-
-            // Chosen entity = orders
-            case "orders":
-                Console.Write("Customer ID: ");
-                if (!int.TryParse(Console.ReadLine(), out var customerID) ||
-                    !db.Customers.Any(c => c.CustomerID == customerID))
-                {
-                    Console.WriteLine("Error: Unknown Customer ID");
-                }
-
-                var order = new Order
-                {
-                    CustomerID = customerID,
-
-                };
-
-                var orderRows = new List<OrderRow>();
-
-                while (true) {
-                    Console.WriteLine("Add order row? y/n");
-                    var answer = Console.ReadLine()?.Trim() ?? string.Empty;
-                    if (answer != "y") break;
-
-                    var products = await db.Products.AsNoTracking()
-                                                    .OrderBy(o => o.ProductID)
-                                                    .ToListAsync();
-
-                    if (!products.Any())
+            switch (entity)
+            {
+                // Chosen entity = customers
+                case "customers":
+                    // Name
+                    Console.WriteLine("Enter customer's name:");
+                    var customerName = Console.ReadLine()?.Trim() ?? string.Empty;
+                    // Validate Customer.Name
+                    if (string.IsNullOrEmpty(customerName) || customerName.Length > 255)
                     {
-                        Console.WriteLine("No products found");
+                        Console.WriteLine("Name is required, and cannot exceed 255 characters");
                         return;
                     }
 
-                    foreach (var product in products)
+                    // Email
+                    Console.WriteLine("Enter customer email: ");
+                    var customerEmail = Console.ReadLine()?.Trim() ?? string.Empty;
+                    // Validate Customer.Email
+                    if (string.IsNullOrEmpty(customerEmail) || customerEmail.Length > 255)
                     {
-                        Console.WriteLine(product.ProductID + " | " + product.Name + " | ");
+                        Console.WriteLine("Email is required, and cannot exceed 255 characters");
+                        return;
+                    }
+                    else if (db.Customers.Any(c => c.Email == customerEmail))
+                    {
+                        Console.WriteLine("Email already exists");
+                        return;
                     }
 
-                    Console.WriteLine("ProductID: ");
-                    if (!int.TryParse(Console.ReadLine(), out var OproductID))
+                    // City
+                    Console.WriteLine("Enter city: ");
+                    var customerCity = Console.ReadLine()?.Trim() ?? string.Empty;
+                    // Validate Customer.City
+                    if (string.IsNullOrEmpty(customerCity) || customerCity.Length > 255)
                     {
-                        Console.WriteLine("Product not found");
-                        continue;
+                        Console.WriteLine("City is required, and cannot exceed 255 characters");
+                        return;
                     }
 
-                    Console.Write("Quantity: ");
-                    if (!int.TryParse(Console.ReadLine(), out var Oquantity) || Oquantity <= 0)
+                    // Add all inputs to DB
+                    db.Customers.Add(new Customer { Name = customerName, Email = customerEmail, City = customerCity });
+                    // Try to save DB
+                    try
                     {
-                        Console.WriteLine("Invalid input of quantity");
-                        continue;
+                        await db.SaveChangesAsync();
+                        Console.WriteLine("Customer successfully added");
+                    }
+                    catch (DbUpdateException failedSavingException)
+                    {
+                        Console.WriteLine("DB Saving error: " + failedSavingException.Message);
                     }
 
-                    var row = new OrderRow
+                    break;
+
+                // Chosen entity = orders
+                case "orders":
+                    Console.Write("Customer ID: ");
+                    if (!int.TryParse(Console.ReadLine(), out var customerID) ||
+                        !db.Customers.Any(c => c.CustomerID == customerID))
                     {
-                        ProductID = OproductID,
-                        Quantity = Oquantity,
+                        Console.WriteLine("Error: Unknown Customer ID");
+                    }
+
+                    var order = new Order
+                    {
+                        CustomerID = customerID,
+
                     };
 
-                    orderRows.Add(row);
-                }
+                    var orderRows = new List<OrderRow>();
 
-                order.OrderRows = orderRows;
-                order.TotalAmount = orderRows.Sum(o => o.UnitPrice * o.Quantity);
+                    while (true)
+                    {
+                        Console.WriteLine("Add order row? y/n");
+                        var answer = Console.ReadLine()?.Trim() ?? string.Empty;
+                        if (answer != "y") break;
 
-                db.Orders.Add(order);
+                        var products = await db.Products.AsNoTracking()
+                                                        .OrderBy(o => o.ProductID)
+                                                        .ToListAsync();
 
-                try
+                        if (!products.Any())
+                        {
+                            Console.WriteLine("No products found");
+                            return;
+                        }
+
+                        foreach (var product in products)
+                        {
+                            Console.WriteLine(product.ProductID + " | " + product.Name + " | ");
+                        }
+
+                        Console.WriteLine("ProductID: ");
+                        if (!int.TryParse(Console.ReadLine(), out var OproductID))
+                        {
+                            Console.WriteLine("Product not found");
+                            continue;
+                        }
+
+                        Console.Write("Quantity: ");
+                        if (!int.TryParse(Console.ReadLine(), out var Oquantity) || Oquantity <= 0)
+                        {
+                            Console.WriteLine("Invalid input of quantity");
+                            continue;
+                        }
+
+                        var row = new OrderRow
+                        {
+                            ProductID = OproductID,
+                            Quantity = Oquantity,
+                        };
+
+                        orderRows.Add(row);
+                    }
+
+                    order.OrderRows = orderRows;
+                    order.TotalAmount = orderRows.Sum(o => o.UnitPrice * o.Quantity);
+
+                    db.Orders.Add(order);
+
+                    try
+                    {
+                        await db.SaveChangesAsync();
+                        Console.WriteLine("Order " + order.OrderID + "created!");
+                    }
+                    catch (DbUpdateException exception)
+                    {
+                        Console.WriteLine("DB Error: " + exception.GetBaseException().Message);
+                    }
+
+                    break;
+
+                // Chosen entity = orderRows
+                case "orderrows":
+                    Console.WriteLine("Add a row to an order\nOrder ID: ");
+                    if (!int.TryParse(Console.ReadLine(), out var ORorderID) ||
+                        !db.Orders.Any(o => o.OrderID == ORorderID))
+                    {
+                        Console.WriteLine("Error: Unknown Order ID");
+                        return;
+                    }
+
+                    // Add product to row
+                    Console.WriteLine("Add a product to the row by its ID: ");
+                    await ListAsync("products");
+                    if (!int.TryParse(Console.ReadLine(), out var ORproductID) ||
+                        !db.Products.Any(p => p.ProductID == ORproductID))
+                    {
+                        Console.WriteLine("Error: Unknown Product ID");
+                        return;
+                    }
+
+                    // Set quantity 
+                    Console.WriteLine("Quantity of the product: ");
+                    if (!int.TryParse(Console.ReadLine(), out var ORquantity) || ORquantity <= 0)
+                    {
+                        Console.WriteLine("Invalid input of quantity");
+                        return;
+                    }
+
+                    var ORorder = await db.Orders.FirstOrDefaultAsync(o => o.OrderID == ORorderID);
+                    var ORproduct = await db.Products.FirstOrDefaultAsync(p => p.ProductID == ORproductID);
+                    var orderRow = new OrderRow
+                    {
+                        OrderID = ORorderID,
+                        ProductID = ORproductID,
+                        Quantity = ORquantity,
+                        UnitPrice = ORproduct.Price
+                    };
+                    ORorder.OrderRows.Add(orderRow);
+                    break;
+
+                // Chosen entity = products
+                case "products":
+                    Console.WriteLine("Create a new product:");
+                    Console.WriteLine("Name: ");
+                    var pName = Console.ReadLine()?.Trim() ?? string.Empty;
+                    if (string.IsNullOrEmpty(pName) || pName.Length > 255)
+                    {
+                        Console.WriteLine("Name is required, and cannot exceed 255 characters");
+                        return;
+                    }
+
+                Console.WriteLine("Set a price for the product:");
+                if (!decimal.TryParse(Console.ReadLine(), out decimal pPrice))
                 {
-                    await db.SaveChangesAsync();
-                    Console.WriteLine("Order " + order.OrderID + "created!");
-                } catch (DbUpdateException exception)
-                {
-                    Console.WriteLine("DB Error: " + exception.GetBaseException().Message);
-                }
-
-                break;
-
-            // Chosen entity = orderRows
-            case "orderrows":
-                Console.WriteLine("Add a row to an order\nOrder ID: ");
-                if (!int.TryParse(Console.ReadLine(), out var ORorderID) ||
-                    !db.Orders.Any(o => o.OrderID == ORorderID))
-                {
-                    Console.WriteLine("Error: Unknown Order ID");
-                }
-
-                // Add product to row
-                Console.WriteLine("Add a product to the row by its ID: ");
-                await ListAsync("products");
-                if (!int.TryParse(Console.ReadLine(), out var ORproductID) ||
-                    !db.Products.Any(p => p.ProductID == ORproductID))
-                {
-                    Console.WriteLine("Error: Unknown Product ID");
-                }
-
-                // Set quantity 
-                Console.WriteLine("Quantity of the product: ");
-                if (!int.TryParse(Console.ReadLine(), out var ORquantity) || ORquantity <= 0)
-                {
-                    Console.WriteLine("Invalid input of quantity");
+                    Console.WriteLine("Invalid price input");
                     return;
                 }
 
-
+                db.Products.Add(new Product { Name = pName, Price = pPrice });
                 break;
+            }
 
-            // Chosen entity = products
-            case "products":
+            await db.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
 
-                break;
-
+        catch (Exception exception)
+        {
+        await transaction.RollbackAsync();
+        Console.WriteLine(exception);
+        throw;
         }
     }
 
@@ -1194,52 +1236,260 @@ while (true)
     static async Task EditAsync(string entity, int id)
     {
         using var db = new ShopContext();
+        await using var transaction = await db.Database.BeginTransactionAsync();
 
         switch (entity)
         {
             // Chosen entity = customers
             case "customers":
+                var customer = await db.Customers.FirstOrDefaultAsync(c => c.CustomerID == id);
+                if (customer == null)
+                {
+                    Console.WriteLine("Customer not found");
+                    return;
+                }
 
-                break;
+                // Update customer's name
+                Console.WriteLine("Current name: " + customer.Name);
+                var customerName = Console.ReadLine()?.Trim() ?? string.Empty;
+                if (!string.IsNullOrEmpty(customerName))
+                {
+                    customer.Name = customerName;
+                }
+
+                // Update customer email
+                Console.WriteLine("Current email: " + customer.Email);
+                var customerEmail = Console.ReadLine()?.Trim() ?? string.Empty;
+                if (!string.IsNullOrEmpty(customerEmail))
+                {
+                    customer.Email = customerEmail;
+                }
+
+                // Update customer city
+                Console.WriteLine("Current city: " + customer.City);
+                var customerCity = Console.ReadLine()?.Trim() ?? string.Empty;
+                if (!string.IsNullOrEmpty(customerCity))
+                {
+                    customer.City = customerCity;
+                }
+
+                // Update customer phone
+                Console.WriteLine("Current phone: " + customer.Phone);
+                var customerPhone = Console.ReadLine()?.Trim() ?? string.Empty;
+                if (!string.IsNullOrEmpty(customerPhone))
+                {
+                    customer.Phone = customerPhone;
+                }
+
+                try
+                {
+                    await db.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    Console.WriteLine("Edited customer info succesfully");
+                }
+                catch (DbUpdateException exception)
+                {
+                    await transaction.RollbackAsync();
+                    Console.WriteLine("Failed to edit customer");
+                    Console.WriteLine(exception.Message);
+                }
+            break;
 
             // Chosen entity = orders
             case "orders":
+                var order = await db.Orders.FirstOrDefaultAsync(o => o.OrderID == id);
+                if (order == null)
+                {
+                    Console.WriteLine("Order not found");
+                    return;
+                }
 
-                break;
+                // Update order status
+                Console.WriteLine("Current status: " + order.Status);
+                var orderStatus = Console.ReadLine()?.Trim() ?? string.Empty;
+                if (!string.IsNullOrEmpty(orderStatus) && orderStatus == "Pending" || orderStatus == "Completed" || orderStatus == "Cancelled")
+                {
+                    order.Status = orderStatus;
+                }
+                else
+                {
+                    Console.WriteLine("Status does not match correct statuses, or was left blank. Not changing");
+                }
+
+                try
+                {
+                    await db.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    Console.WriteLine("Edited order info succesfully");
+                }
+                catch (DbUpdateException exception)
+                {
+                    await transaction.RollbackAsync();
+                    Console.WriteLine("Failed to edit order");
+                    Console.WriteLine(exception.Message);
+                }
+            break;
 
             // Chosen entity = orderRows
             case "orderrows":
+                var orderrow = await db.OrderRows.FirstOrDefaultAsync(or => or.OrderRowID == id);
+                if (orderrow == null)
+                {
+                    Console.WriteLine("Order row not found");
+                    return;
+                }
 
+                // Update row product
+                Console.WriteLine("Current product: " + orderrow.Product.Name);
+                var orderRowProduct = Console.ReadLine()?.Trim() ?? string.Empty;
+                if (!string.IsNullOrEmpty(orderRowProduct) && db.Products.Any(p => p.Name == orderRowProduct))
+                {
+                    var chosenProduct = await db.Products.FirstOrDefaultAsync(p => p.Name == orderRowProduct);
+                    orderrow.ProductID = chosenProduct.ProductID;
+                    orderrow.UnitPrice = chosenProduct.Price;
+                }
+
+                // Update row quantity
+                Console.WriteLine("Current quantity: " + orderrow.Quantity);
+                var orderRowQuantityInput = Console.ReadLine()?.Trim() ?? string.Empty;
+                if (!string.IsNullOrEmpty(orderRowQuantityInput) && int.TryParse(orderRowQuantityInput, out var orderRowQuantity))
+                {
+                    orderrow.Quantity = orderRowQuantity;
+                }
+
+                try
+                {
+                    await db.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    Console.WriteLine("Edited order row info succesfully");
+                }
+                catch (DbUpdateException exception)
+                {
+                    await transaction.RollbackAsync();
+                    Console.WriteLine("Failed to edit order row");
+                    Console.WriteLine(exception.Message);
+                }
                 break;
 
             // Chosen entity = products
             case "products":
+                var product = await db.Products.FirstOrDefaultAsync(p => p.ProductID == id);
+                if (product == null)
+                {
+                    Console.WriteLine("Product not found");
+                    return;
+                }
 
+                // Update product name
+                Console.WriteLine("Current name: " + product.Name);
+                var productName = Console.ReadLine()?.Trim() ?? string.Empty;
+                if (!string.IsNullOrEmpty(productName))
+                {
+                    product.Name = productName;
+                }
+
+                // Update product price
+                Console.WriteLine("Current price: " + product.Price);
+                var productPriceInput = Console.ReadLine()?.Trim() ?? string.Empty;
+                if (!string.IsNullOrEmpty(productPriceInput) && decimal.TryParse(productPriceInput, out var productPrice))
+                {
+                    product.Price = productPrice;
+                }
+
+                try
+                {
+                    await db.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    Console.WriteLine("Edited product row info succesfully");
+                }
+                catch (DbUpdateException exception)
+                {
+                    await transaction.RollbackAsync();
+                    Console.WriteLine("Failed to edit product");
+                    Console.WriteLine(exception.Message);
+                }
                 break;
 
         }
     }
 
     // DELETE - Deletes a chosen entity using the entity's ID
-    // TODO: IMPLEMENT PRINT FOR METHODS: ALL
     static async Task DeleteAsync(string entity, int id)
     {
         using var db = new ShopContext();
+        await using var transaction = await db.Database.BeginTransactionAsync();
 
         switch (entity)
         {
             // Chosen entity = customers
             case "customers":
+                var customer = await db.Customers.FirstOrDefaultAsync(c => c.CustomerID == id);
+                if (customer == null)
+                {
+                    Console.WriteLine("Customer not found");
+                    return;
+                }
+                db.Customers.Remove(customer);
+                try
+                {
+                    await transaction.CommitAsync();
+                    await db.SaveChangesAsync();
+                    Console.WriteLine("Deleted customer");
+                }
+                catch (DbUpdateException exception)
+                {
+                    await transaction.RollbackAsync();
+                    Console.WriteLine("Failed to delete customer");
+                    Console.WriteLine(exception.Message);
+                }
 
-                break;
+            break;
 
             // Chosen entity = orders
             case "orders":
+                var order = await db.Orders.FirstOrDefaultAsync(o => o.OrderID == id);
+                if (order == null)
+                {
+                    Console.WriteLine("Order not found");
+                    return;
+                }
+                db.Orders.Remove(order);
+                try
+                {
+                    await transaction.CommitAsync();
+                    await db.SaveChangesAsync();
+                    Console.WriteLine("Deleted order");
+                }
+                catch (DbUpdateException exception)
+                {
+                    await transaction.RollbackAsync();
+                    Console.WriteLine("Failed to delete order");
+                    Console.WriteLine(exception.Message);
+                }
 
-                break;
+            break;
 
             // Chosen entity = orderRows
             case "orderrows":
+                var orderrow = await db.OrderRows.FirstOrDefaultAsync(or => or.OrderRowID == id);
+                if (orderrow == null)
+                {
+                    Console.WriteLine("Product not found");
+                    return;
+                }
+                db.OrderRows.Remove(orderrow);
+                try
+                {
+                    await transaction.CommitAsync();
+                    await db.SaveChangesAsync();
+                    Console.WriteLine("Deleted Order Row");
+                }
+                catch (DbUpdateException exception)
+                {
+                    await transaction.RollbackAsync();
+                    Console.WriteLine("Failed to delete orderrow");
+                    Console.WriteLine(exception.Message);
+                }
 
                 break;
 
@@ -1255,11 +1505,14 @@ while (true)
 
                 try
                 {
+                    await transaction.CommitAsync();
                     await db.SaveChangesAsync();
                     Console.WriteLine("Deleted product");
                 }
                 catch (DbUpdateException exception)
                 {
+                    await transaction.RollbackAsync();
+                    Console.WriteLine("Failed to delete product");
                     Console.WriteLine(exception.Message);
                 }
 
@@ -1368,6 +1621,28 @@ while (true)
         }
 
     }
+
+
+// Reference for adding a transaction to current methods
+static async Task TransactionBlank()
+{
+    using var db = new ShopContext();
+
+    await using var transaction = await db.Database.BeginTransactionAsync();
+
+    try
+    {
+        // CODE
+        await db.SaveChangesAsync();
+        await transaction.CommitAsync();
+    }
+    catch (Exception exception)
+    {
+        await transaction.RollbackAsync();
+        Console.WriteLine(exception);
+        throw;
+    }
+}
 
 static async Task AddOrderWithTransactionAsync()
 {
