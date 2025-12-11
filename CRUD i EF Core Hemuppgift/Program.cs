@@ -469,11 +469,9 @@ while (true)
             if (!await db.Customers.AnyAsync())
             {
                 // TODO: Local customer seeding
-                List<string> salts = new List<string>();
+                List<string> salts = new();
                 for (int i = 0; i < 3; i++)
-                {
-                    salts.Add(EncryptionHelper.GenerateSalt());
-                }
+                salts.Add(EncryptionHelper.GenerateSalt());
 
                 db.Customers.AddRange(
                     new Customer
@@ -1064,8 +1062,12 @@ while (true)
                         return;
                     }
 
+                    // Phone
+                    Console.WriteLine("Enter phone number");
+                    var customerPhone = Console.ReadLine()?.Trim() ?? string.Empty;
+
                     // Add all inputs to DB
-                    db.Customers.Add(new Customer { Name = customerName, Email = customerEmail, City = customerCity });
+                    db.Customers.Add(new Customer { Name = customerName, Email = customerEmail, City = customerCity, Phone = EncryptionHelper.HashWithSalt(customerPhone, EncryptionHelper.GenerateSalt())});
                     // Try to save DB
                     try
                     {
@@ -1138,6 +1140,7 @@ while (true)
                         };
 
                         orderRows.Add(row);
+                    Console.WriteLine("Row added to order successfully");
                     }
 
                     order.OrderRows = orderRows;
@@ -1148,7 +1151,7 @@ while (true)
                     try
                     {
                         await db.SaveChangesAsync();
-                        Console.WriteLine("Order " + order.OrderID + "created!");
+                        Console.WriteLine("Order " + order.OrderID + " created");
                     }
                     catch (DbUpdateException exception)
                     {
@@ -1195,6 +1198,7 @@ while (true)
                         UnitPrice = ORproduct.Price
                     };
                     ORorder.OrderRows.Add(orderRow);
+                    Console.WriteLine("Order row added");
                     break;
 
                 // Chosen entity = products
@@ -1208,15 +1212,16 @@ while (true)
                         return;
                     }
 
-                Console.WriteLine("Set a price for the product:");
-                if (!decimal.TryParse(Console.ReadLine(), out decimal pPrice))
-                {
-                    Console.WriteLine("Invalid price input");
-                    return;
-                }
+                    Console.WriteLine("Set a price for the product:");
+                    if (!decimal.TryParse(Console.ReadLine(), out decimal pPrice))
+                    {
+                        Console.WriteLine("Invalid price input");
+                        return;
+                    }
 
-                db.Products.Add(new Product { Name = pName, Price = pPrice });
-                break;
+                    db.Products.Add(new Product { Name = pName, Price = pPrice });
+                    Console.WriteLine("Product added");
+                    break;
             }
 
             await db.SaveChangesAsync();
