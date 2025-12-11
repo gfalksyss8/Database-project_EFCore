@@ -44,6 +44,10 @@ The SQLite database stores and displays customer's phone numbers using Salt cryp
 
 The JSON system uses a 66 byte key to encrypt customer's email addresses.
 
+## Data model diagram
+
+<img width="1379" height="920" alt="ER diagram datamodel" src="https://github.com/user-attachments/assets/828dbe0d-de2c-454a-a130-661c18e177ed" />
+
 ## Possible improvements / TODO
 
 All methods retaining to CRUD could be moved into seperate files for ease of reading
