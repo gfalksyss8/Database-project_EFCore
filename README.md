@@ -48,4 +48,4 @@ The JSON system uses a 66 byte key to encrypt customer's email addresses.
 
 All methods retaining to CRUD could be moved into seperate files for ease of reading
 
-Add transactions to all methods that add, replace or remove entires in SQL Database
+While phone numbers are stored hashed in DB, there's no function to verify them, although the method exists
